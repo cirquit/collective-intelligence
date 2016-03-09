@@ -77,7 +77,10 @@ critics = {
 # reciprocal and add 1 to the denominator so we don't get a zero-division
 
 # 1 / (1 + sqrt $ sum [ (a-b)**2 | a <- [a1, a2...], b <- [b1, b2...]])
-# 1.0 ^= perfect similarity
+
+# Interpretation:
+#   * 1.0 ^= perfect similarity
+#   * 0.0 ^= no similarity at all
 
 def sim_distance(prefs, p1, p2):
     # get shared preferences
@@ -94,35 +97,71 @@ def sim_distance(prefs, p1, p2):
 
     return 1/(1 + sqrt(square_sums))
 
+# Pearson distance correlation
+# 
+
+# Interpretation:
+#   * + 1.0 total positive correlation
+#   *   0.0 no correlation at all
+#   * - 1.0 total negative correlation
+
+
+def sim_pearson(prefs, p1, p2):
+    # get shared preferences
+    shared_prefs = {}
+    for item in prefs[p1]:
+        if item in prefs[p2]:
+            shared_prefs[item] = 1
+
+    n = len(shared_prefs)
+
+    # no shared preferences return 0
+    if n == 0: return 0
+
+    # calc_sums :: Num a => [a] (exactly 5 items) lists, because tuples are not mutable...
+    def calc_sums():
+        # helper function for foldl
+        def go(acc, it):
+            acc[0] += prefs[p1][it]
+            acc[1] += prefs[p2][it]
+            acc[2] += pow(prefs[p1][it], 2)
+            acc[3] += pow(prefs[p2][it], 2)
+            acc[4] += prefs[p1][it] * prefs[p2][it]
+            return acc
+
+        return reduce(go, shared_prefs, [0, 0, 0, 0, 0])
+
+    sum1, sum2, sum1_sq, sum2_sq, p_sum = tuple(calc_sums())
+
+    # calculate pearson score
+    num = p_sum - (sum1 * sum2 / n)
+    den = sqrt((sum1_sq - pow(sum1, 2) / n) * (sum2_sq - pow(sum2, 2) / n))
+
+    if den == 0: return 0
+
+    return num / den
+
+# variance :: (Num a) => [a] -> Double
+def variance(values):
+
+    n    = len(values)
+    mean = sum(values) / n
+
+    nsum = reduce (lambda acc, x: pow(x - mean, 2) + acc, values, 0)
+
+    return nsum / n
+
+# standart_deviation :: (Num a) => [a] -> Double
+def standart_deviation(values):
+    return sqrt(variance(values))
+
 
 d1 = sim_distance(critics, 'Lisa Rose', 'Gene Seymour')
 d2 = sim_distance(critics, 'Gene Seymour', 'Lisa Rose')
 d3 = sim_distance(critics, 'Lisa Rose', 'Toby')
 d4 = sim_distance(critics, 'Toby', 'Gene Seymour')
 
-'''
-
-def filmplots(prefs, f1, f2):
-    # f1/f2 coordinates for every reviewer
-    f1s = []
-    f2s = []
-
-    # get film review for every reviewer
-    for p in prefs:
-        if f1 in prefs[p]:
-            f1s.append(prefs[p][f1])
-        else:
-            f1s.append(0)
-
-        if f2 in prefs[p]:
-            f2s.append(prefs[p][f2])
-        else:
-            f2s.append(0)
-
-    plt.plot(f1s, f2s, 'ro')
-    plt.show()
-
-
-p1 = filmplots(critics, 'Just My Luck', 'Superman Returns')
-
-'''
+s1 = sim_pearson(critics, 'Lisa Rose', 'Gene Seymour')
+s2 = sim_pearson(critics, 'Gene Seymour', 'Lisa Rose')
+s3 = sim_pearson(critics, 'Lisa Rose', 'Toby')
+s4 = sim_pearson(critics, 'Toby', 'Gene Seymour')
